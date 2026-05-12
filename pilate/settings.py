@@ -78,9 +78,9 @@ WSGI_APPLICATION = 'pilate.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'entrevistaia',
-        'USER': 'root',
-        'PASSWORD': 'root',
+        'NAME': 'restaurante',
+        'USER': 'benja',
+        'PASSWORD': 'admin123',
         'HOST': 'localhost',
         'PORT': '3306',
     }
