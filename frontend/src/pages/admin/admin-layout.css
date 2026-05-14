@@ -233,6 +233,52 @@ body {
   border-color: rgba(255,255,255,0.16);
 }
 
+.admin-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px 16px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.admin-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dorado-2);
+}
+
+.admin-user-role {
+  font-size: 12px;
+  color: var(--sidebar-text-dim);
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 8px;
+  background: rgba(181,41,28,0.1);
+  border: 1px solid rgba(181,41,28,0.2);
+  border-radius: var(--radius-md);
+  color: #B5291C;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.logout-button:hover {
+  background: rgba(181,41,28,0.18);
+  color: #B5291C;
+  border-color: rgba(181,41,28,0.3);
+}
+
 /* ── OVERLAY (mobile) ─────────────────────────────────────────────────────── */
 .overlay {
   position: fixed;

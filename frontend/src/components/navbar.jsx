@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './navbar.css';
 
 const scrollToSection = (index) => {
@@ -12,6 +13,7 @@ const scrollToSection = (index) => {
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
+  const { user } = useAuth();
 
   useEffect(() => {
     const sections = document.querySelectorAll('.page-section');
@@ -71,15 +73,38 @@ export default function Navbar() {
               </button>
             </li>
           ))}
-          <li className="nav-item">
-            <Link
-              to="/admin"
-              className="nav-link nav-admin"
-              onClick={() => setMenuOpen(false)}
-            >
-              Admin
-            </Link>
-          </li>
+          {user ? (
+            <li className="nav-item">
+              <Link
+                to="/admin"
+                className="nav-link nav-admin"
+                onClick={() => setMenuOpen(false)}
+              >
+                Admin
+              </Link>
+            </li>
+          ) : (
+            <>
+              <li className="nav-item">
+                <Link
+                  to="/login"
+                  className="nav-link nav-admin"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Iniciar sesión
+                </Link>
+              </li>
+              <li className="nav-item">
+                <Link
+                  to="/register"
+                  className="nav-link nav-admin"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Registrarse
+                </Link>
+              </li>
+            </>
+          )}
         </ul>
       </div>
     </nav>

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import AdminHome from './AdminHome';
-import AdminClases from './Adminmenu';
 import AdminEmpleados from './AdminEmpleados';
+import AdminProductos from './AdminProductos';
+import AdminPlatos from './AdminPlatos';
 import './admin-layout.css';
 
 const AdminPlaceholder = ({ title, description }) => (
@@ -19,6 +21,13 @@ const AdminPlaceholder = ({ title, description }) => (
 
 const AdminLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, empleado, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   return (
     <div className="admin-layout">
@@ -62,7 +71,7 @@ const AdminLayout = () => {
             </li>
             <li>
               <NavLink
-                to="/admin/clases"
+                to="/admin/platos"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setMenuOpen(false)}
               >
@@ -78,13 +87,30 @@ const AdminLayout = () => {
                 Empleados
               </NavLink>
             </li>
+            <li>
+              <NavLink
+                to="/admin/productos"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={() => setMenuOpen(false)}
+              >
+                Productos
+              </NavLink>
+            </li>
           </ul>
         </nav>
 
         <div className="admin-footer">
+          <div className="admin-user-info">
+            <span className="admin-user-name">{empleado ? empleado.nombre : user?.username}</span>
+            {empleado && <span className="admin-user-role">{empleado.rol} · {empleado.turno}</span>}
+            {!empleado && user?.is_superuser && <span className="admin-user-role">Superusuario</span>}
+          </div>
           <NavLink to="/" onClick={() => setMenuOpen(false)} className="return-button">
             ← Volver al sitio
           </NavLink>
+          <button onClick={handleLogout} className="logout-button">
+            Cerrar sesión
+          </button>
         </div>
       </aside>
 
@@ -103,17 +129,9 @@ const AdminLayout = () => {
               />
             }
           />
-          <Route path="clases" element={<AdminClases />} />
           <Route path="empleados" element={<AdminEmpleados />} />
-          <Route
-            path="empleados"
-            element={
-              <AdminPlaceholder
-                title="Empleados"
-                description="Supervisa al equipo y turnos del restaurante."
-              />
-            }
-          />
+          <Route path="productos" element={<AdminProductos />} />
+          <Route path="platos" element={<AdminPlatos />} />
         </Routes>
       </main>
     </div>
