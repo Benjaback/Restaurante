@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import AdminHome from './AdminHome';
 import AdminClases from './Adminmenu';
+import AdminEmpleados from './AdminEmpleados';
 import './admin-layout.css';
 
 const AdminPlaceholder = ({ title, description }) => (
@@ -47,7 +48,7 @@ const AdminLayout = () => {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setMenuOpen(false)}
               >
-                📊 Resumen
+                Resumen
               </NavLink>
             </li>
             <li>
@@ -56,7 +57,7 @@ const AdminLayout = () => {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setMenuOpen(false)}
               >
-                📅 Reservas
+                Reservas
               </NavLink>
             </li>
             <li>
@@ -65,7 +66,7 @@ const AdminLayout = () => {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setMenuOpen(false)}
               >
-                🍽️ Menú
+                Menú
               </NavLink>
             </li>
             <li>
@@ -74,7 +75,7 @@ const AdminLayout = () => {
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={() => setMenuOpen(false)}
               >
-                👥 Empleados
+                Empleados
               </NavLink>
             </li>
           </ul>
@@ -103,6 +104,7 @@ const AdminLayout = () => {
             }
           />
           <Route path="clases" element={<AdminClases />} />
+          <Route path="empleados" element={<AdminEmpleados />} />
           <Route
             path="empleados"
             element={

@@ -77,7 +77,7 @@ export default function Navbar() {
               className="nav-link nav-admin"
               onClick={() => setMenuOpen(false)}
             >
-              ⚙️ Admin
+              Admin
             </Link>
           </li>
         </ul>
