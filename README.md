@@ -1,8 +1,8 @@
-# 🍽️ Sistema de Gestión para Restaurantes
+# Sistema de Gestión para Restaurantes
 
 Sistema full-stack para la administración de restaurantes: gestión de empleados, inventario de productos, platos con recetas, control de stock y panel administrativo.
 
-## 🚀 Instalación y Ejecución
+## Instalación y Ejecución
 
 ### 1. Backend (Django)
 
@@ -36,22 +36,6 @@ npm start
 
 ---
 
-## 🗄️ Base de Datos
-
-Configurar MySQL
-Crear base de datos: CREATE DATABASE restaurante
-Editar pilate/settings.py con tus credenciales
-
-## 📋 Modelos de Datos
-
-### 🔐 AuthToken
-Token de autenticación personalizado. Cada login genera un token nuevo; cada logout lo elimina.
-
-
-### 👤 Empleado
-Empleados del restaurante vinculados a un User de Django.
-
-
 ### Panel Administrativo
 
 El sidebar incluye:
@@ -73,16 +57,7 @@ Crear CategoriaProducto → Crear Producto (con stock inicial)
                         Agregar Receta (producto + cantidad)
                                             ↓
                               ORDENAR → valida stock → descuenta stock
-```
 
-Ejemplo:
-1. Producto: `Fideos — stock: 1kg`
-2. Producto: `Milanesa — stock: 4 unidades`
-3. Plato: `Fideo con milanesa — $1200`
-4. Receta: `400g de Fideos` + `2 Milanesas`
-5. Ordenar: descuenta `400g` de Fideos y `2` de Milanesa
-
----
 
 ## 🛠️ Comandos Útiles
 
@@ -92,8 +67,7 @@ python manage.py makemigrations
 python manage.py migrate
 
 # Admin de Django
-python manage.py createsuperuser
-# http://localhost:8000/admin/
+python manage.py runserver
 
 # Verificar proyecto
 python manage.py check
