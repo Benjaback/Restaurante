@@ -58,20 +58,3 @@ Crear CategoriaProducto → Crear Producto (con stock inicial)
                                             ↓
                               ORDENAR → valida stock → descuenta stock
 
-
-## 🛠️ Comandos Útiles
-
-```bash
-# Migraciones
-python manage.py makemigrations
-python manage.py migrate
-
-# Admin de Django
-python manage.py runserver
-
-# Verificar proyecto
-python manage.py check
-
-# Shell de Django
-python manage.py shell
-```
