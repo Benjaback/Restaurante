@@ -9,9 +9,7 @@ Sistema full-stack para la administración de restaurantes: gestión de empleado
 - **Python 3.10 o superior** (Django 6.0 lo requiere)
 - **Node.js 16+** (para el frontend)
 - **MySQL 8+**
-- **mysqlclient** necesita compiladores C y los headers de desarrollo de MySQL:
-  - Debian/Ubuntu: `sudo apt install default-libmysqlclient-dev build-essential pkg-config`
-  - macOS: instalar Xcode Command Line Tools (`xcode-select --install`)
+
 
 ### 1. Base de datos MySQL
 
