@@ -11,22 +11,8 @@ Sistema full-stack para la administración de restaurantes: gestión de empleado
 - **MySQL 8+**
 
 
-### 1. Base de datos MySQL
 
-```sql
-CREATE DATABASE restaurante CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 2. Configurar variables de entorno
-
-Copiá la plantilla y completá los valores:
-
-```bash
-cp .env.example .env
-# Editá .env con tu SECRET_KEY y credenciales de MySQL
-```
-
-### 3. Backend (Django)
+### 1. Backend (Django)
 
 ```bash
 # Crear y activar entorno virtual
@@ -47,7 +33,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-### 4. Frontend (React)
+### 2. Frontend (React)
 
 ```bash
 cd frontend
