@@ -1,0 +1,1354 @@
+========================================================
+  SISTEMA DE GESTIÓN RESTAURANTE — Explicación completa
+========================================================
+
+Índice
+  1. Resumen del proyecto
+  2. Stack tecnológico
+  3. Estructura del proyecto
+  4. Backend — Django
+    4.1 Modelos (19)
+    4.2 Endpoints (39)
+    4.3 Patrón de vistas
+    4.4 Decorador token_required
+    4.5 Serialización manual
+    4.6 Lógica de negocio clave
+  5. Frontend — React
+    5.1 Router y rutas
+    5.2 AuthContext
+    5.3 Comunicación con el API
+    5.4 Patrón de componentes admin
+  6. Comunicación React ↔ Django
+  7. Autenticación y roles
+  8. Flujos importantes
+    8.1 Crear y confirmar un pedido
+    8.2 Auto-desactivación de stock
+    8.3 Caja registradora
+  9. Seguridad — situación actual
+  10. Estado del proyecto
+  11. Preguntas y respuestas para entrevista
+
+
+========================================================
+1. RESUMEN DEL PROYECTO
+========================================================
+
+Es un sistema de gestión gastronómico full-stack para un restaurante.
+Permite administrar empleados, productos, platos con recetas, mesas,
+pedidos, caja, reservas y producción.
+
+  - Backend: Django 6.0 + MySQL — API REST hecha a mano (sin DRF)
+  - Frontend: React 19 + React Router 7 — SPA con TailwindCSS
+  - Autenticación por token custom (no JWT, no sesión)
+  - 19 modelos, 39 endpoints, 13 páginas frontend
+
+
+========================================================
+2. STACK TECNOLÓGICO
+========================================================
+
+Backend:
+  - Python 3.x + Django 6.0.3
+  - MySQL (motor de base de datos)
+  - django-cors-headers (CORS)
+  - No usa Django REST Framework
+
+Frontend:
+  - React 19
+  - React Router 7
+  - react-scripts 5 (Create React App)
+  - TailwindCSS
+  - jsPDF + jspdf-autotable (generación de PDF en cliente)
+  - react-icons
+  - No usa axios (fetch nativo)
+
+Infraestructura:
+  - .env con credenciales SMTP de Gmail
+  - Proxy de desarrollo en package.json
+  - Deploy planeado: Vercel (frontend) + Railway/Render (backend)
+
+
+========================================================
+3. ESTRUCTURA DEL PROYECTO
+========================================================
+
+Restaurante/
+│
+├── manage.py                   # Entry point Django
+├── requirements.txt            # Dependencias Python
+├── .env                        # Credenciales email (Gmail SMTP)
+├── AGENTS.md                   # Documentación del proyecto
+│
+├── pilate/                     # Configuración Django
+│   ├── settings.py             # DB, CORS, apps, middleware
+│   ├── urls.py                 # URLs raíz → /admin/, /api/
+│   ├── wsgi.py / asgi.py
+│
+├── api/                        # App Django principal
+│   ├── models.py               # 19 modelos
+│   ├── views.py                # ~2000 líneas — todas las vistas
+│   ├── urls.py                 # 39 endpoints
+│   ├── admin.py                # Registro de modelos en admin
+│   └── migrations/             # 17 migraciones
+│
+├── frontend/                   # React 19
+│   ├── package.json            # proxy → http://127.0.0.1:8000
+│   ├── tailwind.config.js
+│   └── src/
+│       ├── App.js              # Router + AuthProvider
+│       ├── contexts/
+│       │   └── AuthContext.js  # Estado global de auth
+│       ├── components/
+│       │   ├── navbar.jsx      # Navbar público con scroll
+│       │   └── ConfirmModal.jsx
+│       └── pages/
+│           ├── admin/          # 10 páginas admin
+│           │   ├── AdminLayout.jsx      # Sidebar + rutas anidadas
+│           │   ├── AdminHome.jsx        # Dashboard (mock data)
+│           │   ├── AdminEmpleados.jsx   # CRUD empleados
+│           │   ├── AdminProductos.jsx   # CRUD productos + PDF
+│           │   ├── AdminPlatos.jsx      # CRUD platos + recetas
+│           │   ├── AdminMesas.jsx       # CRUD mesas + asignaciones
+│           │   ├── AdminTurnos.jsx      # CRUD turnos
+│           │   ├── AdminElaboracion.jsx # Recetas + producción
+│           │   ├── AdminPedidos.jsx     # Ciclo de pedidos
+│           │   ├── AdminCaja.jsx        # Apertura/cierre caja
+│           │   └── AdminReservas.jsx    # CRUD reservas
+│           ├── Login.jsx
+│           ├── Register.jsx
+│           ├── inicio.jsx       # Hero / landing
+│           ├── menu.jsx         # Menú público (conectado a API)
+│           └── sobreMi.jsx      # About estático
+│
+└── env/                        # Virtualenv Python
+
+
+========================================================
+4. BACKEND — DJANGO
+========================================================
+
+4.1 MODELOS (19 modelos en api/models.py)
+
+User (Django auth)
+  │
+  ├── AuthToken (token de autenticación custom)
+  │     key: CharField(64, unique)
+  │     user: FK → User
+  │     created: auto_now_add
+  │
+  └── Empleado (OneToOne → User)
+        nombre, apellido, dni, fecha_nacimiento, direccion
+        telefono, email, activo, fecha_contratacion
+        rol: FK → Rol
+        turno: FK → Turno
+
+Rol
+    nombre (unique), descripcion, activo
+    group: OneToOne → Group (se sincroniza al guardar)
+    Al crearse, auto-crea o actualiza un Group de Django
+
+Turno
+    nombre (unique), hora_inicio, hora_fin, activo
+
+--- Productos ---
+
+CategoriaProducto
+    nombre (unique), activo
+
+Producto
+    nombre, categoria (FK → CategoriaProducto)
+    stock (Decimal), precio_compra (Decimal, nullable)
+    unidad, stock_minimo, activo, fecha_creacion
+
+RecetaProducto  (para productos compuestos)
+    producto_elaborado (FK → Producto)
+    producto_insumo (FK → Producto)
+    cantidad (Decimal)
+    unique_together: (producto_elaborado, producto_insumo)
+
+Produccion
+    producto (FK → Producto)
+    cantidad, fecha, descripcion
+
+--- Platos ---
+
+CategoriaPlato
+    nombre (unique), activo
+
+Plato
+    nombre, precio (Decimal), categoria (FK → CategoriaPlato)
+    descripcion, imagen (URLField), activo, fecha_creacion
+
+Receta  (relaciona platos con productos)
+    plato (FK → Plato)
+    producto (FK → Producto)
+    cantidad (Decimal)
+    unique_together: (plato, producto)
+    → Un plato necesita varios productos con cantidades específicas
+
+--- Mesas ---
+
+Mesa
+    numero, capacidad, activa
+
+AsignacionMesa
+    mesa (FK → Mesa)
+    empleado (FK → Empleado, rol=Mesero)
+    turno (FK → Turno)
+    fecha (DateField)
+    unique_together: (mesa, turno, fecha)
+
+--- Pedidos ---
+
+Pedido
+    mesa (FK → Mesa)
+    empleado (FK → Empleado)
+    estado: abierto / en_preparacion / servido / cerrado / pagado
+    total (Decimal)
+    fecha_creacion, fecha_cierre
+
+DetallePedido
+    pedido (FK → Pedido)
+    plato (FK → Plato)
+    cantidad, precio_unitario, subtotal
+
+Pago (OneToOne → Pedido)
+    monto, metodo (efectivo/tarjeta/transferencia), vuelto, fecha
+
+Ticket (OneToOne → Pedido)
+    total, fecha_emision
+
+--- Caja ---
+
+Caja
+    empleado_apertura (FK → Empleado)
+    empleado_cierre (FK → Empleado, nullable)
+    fecha_apertura (auto_now_add)
+    fecha_cierre (DateTimeField, nullable)
+    monto_inicial, monto_final (nullable)
+    activa (BooleanField, default=True)
+
+MovimientoCaja
+    caja (FK → Caja)
+    tipo: ingreso / egreso
+    monto, referencia, descripcion, fecha
+
+--- Reservas ---
+
+Reserva
+    nombre_cliente, telefono, email
+    fecha, hora, personas
+    mesa (FK → Mesa, nullable)
+    estado: pendiente / confirmada / cancelada / cumplida
+    empleado (FK → Empleado, nullable)
+    notas, fecha_creacion
+
+
+4.2 ENDPOINTS (39 endpoints en api/urls.py)
+
+  Módulo Auth:
+    POST   /api/auth/login/          → Login, devuelve token + user + empleado
+    POST   /api/auth/register/       → Registro, devuelve token + user
+    POST   /api/auth/logout/         → Elimina token (requiere auth)
+    GET    /api/auth/me/             → Datos del usuario actual (requiere auth)
+
+  Módulo Roles:
+    GET    /api/roles/               → Listar roles
+    POST   /api/roles/               → Crear rol
+    PATCH  /api/roles/<id>/          → Actualizar rol
+    DELETE /api/roles/<id>/          → Eliminar rol
+
+  Módulo Turnos:
+    GET    /api/turnos/              → Listar turnos
+    POST   /api/turnos/              → Crear turno
+    GET    /api/turnos/<id>/         → Ver turno
+    PATCH  /api/turnos/<id>/         → Actualizar turno
+    DELETE /api/turnos/<id>/         → Eliminar turno
+
+  Módulo Empleados:
+    GET    /api/empleados/           → Listar (filtro: ?rol=)
+    POST   /api/empleados/           → Crear (crea User + envía email)
+    PATCH  /api/empleados/<id>/      → Actualizar
+    DELETE /api/empleados/<id>/      → Eliminar
+
+  Módulo Categorías:
+    GET/POST   /api/categorias-producto/
+    PATCH/DELETE /api/categorias-producto/<id>/
+    GET/POST   /api/categorias-plato/
+    PATCH/DELETE /api/categorias-plato/<id>/
+
+  Módulo Productos:
+    GET    /api/productos/           → Listar (filtros por query params)
+    POST   /api/productos/           → Crear
+    PATCH  /api/productos/<id>/      → Actualizar (auto-desactiva si stock≤0)
+    DELETE /api/productos/<id>/      → Eliminar
+    GET    /api/productos/<id>/usos/ → Ver en qué platos se usa
+
+  Módulo Platos:
+    GET    /api/platos/              → Listar
+    POST   /api/platos/              → Crear (con recetas)
+    PATCH  /api/platos/<id>/         → Actualizar
+    DELETE /api/platos/<id>/         → Eliminar
+
+  Módulo Recetas de Producto:
+    GET/POST   /api/recetas-producto/
+    PATCH/DELETE /api/recetas-producto/<id>/
+
+  Módulo Producción:
+    GET/POST   /api/producciones/
+
+  Módulo Mesas:
+    GET/POST   /api/mesas/
+    PATCH/DELETE /api/mesas/<id>/
+
+  Módulo Asignaciones:
+    GET/POST   /api/asignaciones/    (filtros: ?fecha=&turno_id=)
+    PATCH/DELETE /api/asignaciones/<id>/
+
+  Módulo Pedidos:
+    GET    /api/pedidos/             → Listar (requiere auth)
+    POST   /api/pedidos/             → Crear (requiere auth, requiere caja activa)
+    GET    /api/pedidos/<id>/        → Ver (requiere auth)
+    PATCH  /api/pedidos/<id>/        → Actualizar estado (requiere auth)
+    DELETE /api/pedidos/<id>/        → Eliminar (requiere auth)
+    POST   /api/pedidos/<id>/confirmar/ → Confirmar y consumir stock (requiere auth)
+
+  Módulo Pagos:
+    POST   /api/pagos/               → Pagar pedido (requiere auth)
+
+  Módulo Tickets:
+    GET    /api/tickets/             → Listar (?pedido_id=) (requiere auth)
+
+  Módulo Caja:
+    GET/POST   /api/cajas/           → Listar/Crear (requiere auth)
+    PATCH/DELETE /api/cajas/<id>/    → Cerrar caja (requiere auth)
+    GET/POST   /api/movimientos-caja/ → Movimientos (requiere auth)
+
+  Módulo Reservas:
+    GET/POST   /api/reservas/        → Listar/Crear (requiere auth)
+    GET/PATCH/DELETE /api/reservas/<id>/ (requiere auth)
+
+  Upload:
+    POST   /api/upload-imagen/       → Subir imagen (requiere auth)
+
+
+4.3 PATRÓN DE VISTAS
+
+Todas son function-based views en api/views.py (~2000 líneas).
+El patrón típico:
+
+    @csrf_exempt
+    def productos_list(request):
+        if request.method == 'GET':
+            productos = Producto.objects.select_related('categoria').all()
+            data = [producto_to_dict(p) for p in productos]
+            return JsonResponse(data, safe=False)
+
+        elif request.method == 'POST':
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'JSON inválido'}, status=400)
+            # validación manual campo por campo
+            producto = Producto.objects.create(**data)
+            return JsonResponse(producto_to_dict(producto), status=201)
+
+        return HttpResponseNotAllowed(['GET', 'POST'])
+
+Características:
+  - @csrf_exempt en todas (SPA con token, no cookies)
+  - @token_required solo en endpoints sensibles
+  - Sin serializers — funciones to_dict() manuales
+  - Validación manual con if/else
+  - Respuestas con JsonResponse
+
+
+4.4 DECORADOR TOKEN_REQUIRED
+
+    def token_required(view_func):
+        def wrapper(request, *args, **kwargs):
+            auth_header = request.headers.get('Authorization', '')
+            parts = auth_header.split()
+            if len(parts) != 2 or parts[0].lower() != 'token':
+                return JsonResponse({'error': 'Token requerido'}, status=401)
+            try:
+                token = AuthToken.objects.select_related('user').get(key=parts[1])
+            except AuthToken.DoesNotExist:
+                return JsonResponse({'error': 'Token inválido'}, status=401)
+            if not token.user.is_active:
+                return JsonResponse({'error': 'Usuario inactivo'}, status=401)
+            request.user = token.user
+            request.auth_token = token
+            return view_func(request, *args, **kwargs)
+        return wrapper
+
+  - Busca el header "Authorization: Token <key>"
+  - Consulta AuthToken con select_related('user') (optimización)
+  - Rechaza con 401 si no existe, formato inválido, o usuario inactivo
+  - Setea request.user para usarlo en la vista
+
+
+4.5 SERIALIZACIÓN MANUAL
+
+No hay serializers de DRF. Cada modelo tiene una función to_dict():
+
+    def producto_to_dict(p):
+        return {
+            'id': p.id,
+            'nombre': p.nombre,
+            'categoria': {'id': p.categoria.id, 'nombre': p.categoria.nombre} if p.categoria else None,
+            'stock': float(p.stock),
+            'precio_compra': float(p.precio_compra) if p.precio_compra else None,
+            'unidad': p.unidad,
+            'stock_minimo': float(p.stock_minimo),
+            'activo': p.activo,
+            'fecha_creacion': p.fecha_creacion.isoformat(),
+        }
+
+
+4.6 LÓGICA DE NEGOCIO CLAVE
+
+  a) Auto-desactivación por stock:
+
+     Cuando se modifica stock (vía PATCH producto o al confirmar pedido):
+       1. Si stock <= 0 → producto.activo = False
+       2. Se llama a desactivar_platos_por_producto(producto)
+       3. Esto busca todos los platos cuya receta incluya ese producto
+       4. Y los desactiva también (activo = False)
+
+  b) Validación al reactivar plato:
+
+     Si querés reactivar un plato (PATCH con activo=True):
+       - Verifica que todos los productos de su receta estén activos
+       - Si hay alguno inactivo → error: "No hay productos disponibles"
+
+  c) Confirmar pedido (consume stock):
+
+     POST /api/pedidos/<id>/confirmar/
+       1. Cambia estado a "en_preparacion"
+       2. Por cada DetallePedido:
+            Por cada Receta del plato:
+              producto.stock -= (cantidad_receta * cantidad_detalle)
+              Si stock <= 0 → desactivar producto + platos asociados
+
+  d) Caja:
+
+     - Solo una caja activa a la vez
+     - Al crear caja, si hay otras activas, se cierran automáticamente
+     - Pagos generan MovimientoCaja (ingreso) automáticamente
+     - Se puede cerrar caja manualmente con monto_final
+
+
+========================================================
+5. FRONTEND — REACT
+========================================================
+
+5.1 ROUTER Y RUTAS (App.js)
+
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={
+          <Navbar />
+          <section id="inicio"><Inicio /></section>
+          <section id="clases"><Menu /></section>
+          <section id="sobre-mi"><SobreMi /></section>
+        } />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/admin/*" element={
+          <AdminRoute>   ← protege rutas admin
+            <AdminLayout />
+          </AdminRoute>
+        } />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </AuthProvider>
+
+  AdminRoute:
+    - Lee token de localStorage
+    - Lee auth_data (user + empleado)
+    - Si no hay token → redirect a /login
+    - Si no tiene empleado ni es staff/superuser → redirect a /
+    - Si pasa → renderiza children
+
+  AdminLayout (rutas anidadas):
+    /admin/home          → AdminHome (dashboard mockeado)
+    /admin/empleados     → AdminEmpleados
+    /admin/productos     → AdminProductos
+    /admin/platos        → AdminPlatos
+    /admin/mesas         → AdminMesas
+    /admin/turnos        → AdminTurnos
+    /admin/elaboracion   → AdminElaboracion
+    /admin/pedidos       → AdminPedidos
+    /admin/caja          → AdminCaja
+    /admin/reservas      → AdminReservas
+
+
+5.2 AUTH CONTEXT (contexts/AuthContext.js)
+
+  Provee a toda la app: { user, empleado, token, loading, login, logout, saveSession }
+
+  login(username, password):
+    1. POST /api/auth/login/ con username + password
+    2. Guarda auth_token en localStorage
+    3. Guarda auth_data (JSON con user + empleado) en localStorage
+    4. Actualiza estado global
+
+  logout():
+    1. POST /api/auth/logout/ con Authorization: Token <key>
+    2. Limpia localStorage (auth_token, auth_data)
+    3. Resetea estado global
+
+  Al montar el componente:
+    1. Lee token de localStorage
+    2. Si existe, hace GET /api/auth/me/
+    3. Si ok → guarda user + empleado en estado
+    4. Si falla (token expirado/inválido) → limpia sesión
+
+
+5.3 COMUNICACIÓN CON EL API
+
+  No hay una capa de servicios compartida. Cada página define su helper:
+
+  --- Sin token (AdminProductos, AdminEmpleados, AdminPlatos) ---
+    const api = (url, opts) =>
+      fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts })
+        .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error); }));
+
+  --- Con token (AdminPedidos, AdminCaja, AdminReservas) ---
+    function api(url, opts = {}) {
+      const token = localStorage.getItem('auth_token');
+      return fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Token ${token}` } : {}),
+        },
+        ...opts,
+      }).then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.error); }));
+    }
+
+  --- Image upload ---
+    const fd = new FormData();
+    fd.append('imagen', file);
+    const token = localStorage.getItem('auth_token');
+    fetch('/api/upload-imagen/', {
+      method: 'POST',
+      headers: token ? { Authorization: `Token ${token}` } : {},
+      body: fd,
+    });
+
+
+5.4 PATRÓN DE COMPONENTES ADMIN
+
+  Cada página admin sigue este patrón:
+
+    1. Estado local con useState (datos, formulario, loading, error)
+    2. useEffect al montar para cargar datos
+    3. Modal para crear/editar (toggle con useState)
+    4. Funciones handleCreate, handleUpdate, handleDelete
+    5. Filtros y búsqueda client-side
+    6. Paginación client-side
+
+
+========================================================
+6. COMUNICACIÓN REACT ↔ DJANGO
+========================================================
+
+  En desarrollo:
+
+    React (localhost:3000)
+       │
+       │ fetch('/api/productos/')
+       ▼
+    Webpack Dev Server (proxy)
+       │ "proxy": "http://127.0.0.1:8000"
+       ▼
+    Django (localhost:8000)
+       │ @csrf_exempt, opcional @token_required
+       │ json.loads(request.body) → lógica → JsonResponse()
+       ▼
+    Respuesta JSON → React
+
+  El proxy está declarado en frontend/package.json:
+    "proxy": "http://127.0.0.1:8000"
+
+  Esto hace que el navegador crea que todo viene del mismo origen
+  (puerto 3000), evitando CORS en desarrollo.
+
+  En producción (planeado):
+    - Frontend en Vercel → apunta directamente a la URL del backend
+    - Backend en Railway/Render → recibe requests del frontend
+    - CORS configurado con CORS_ALLOWED_ORIGINS específicos
+
+
+========================================================
+7. AUTENTICACIÓN Y ROLES
+========================================================
+
+  Modelo de autenticación:
+
+    User (Django auth)
+      │
+      ├── AuthToken (token custom de 64 chars hex)
+      │
+      └── Empleado (OneToOne)
+              │
+              └── Rol (FK)
+                    │
+                    └── Group (OneToOne, sincronizado automáticamente)
+
+  Flujo:
+    1. POST /api/auth/login/ → Django crea AuthToken, devuelve { token, user, empleado }
+    2. Frontend guarda token en localStorage
+    3. Cada request protegido envía: Authorization: Token <key>
+    4. GET /api/auth/me/ verifica token al cargar la app
+    5. POST /api/auth/logout/ elimina token de la BD
+
+  Roles:
+    - El modelo Rol existe y permite crear cualquier rol
+    - No hay roles predefinidos (no hay seed data)
+    - Está vinculado a Group de Django pero sin asignar permisos
+    - La autorización se hace inline: rol__nombre='Mesero'
+    - No se usa has_perm() ni permission_required
+
+
+========================================================
+8. FLUJOS IMPORTANTES
+========================================================
+
+8.1 CREAR Y CONFIRMAR UN PEDIDO
+
+  1. AdminPedidos carga datos iniciales:
+       GET /api/mesas/              → para elegir mesa
+       GET /api/empleados/?rol=Mesero → para asignar mesero
+       GET /api/platos/             → para el carrito
+       GET /api/productos/          → para ver disponibilidad
+
+  2. POST /api/pedidos/ (requiere auth)
+       Body: { mesa_id, empleado_id, total, detalles: [{plato_id, cantidad, precio_unitario, subtotal}] }
+       → Crea Pedido + DetallePedido
+       → Valida que haya una caja activa
+       → Estado inicial: "abierto"
+
+  3. POST /api/pedidos/<id>/confirmar/ (requiere auth)
+       → Consume stock:
+           Por cada DetallePedido:
+             Por cada Receta del plato:
+               producto.stock -= (cantidad_receta * cantidad_detalle)
+               Si stock <= 0 → producto.activo = False
+               → desactivar_platos_por_producto(producto)
+       → Cambia estado a "en_preparacion"
+
+  4. PATCH /api/pedidos/<id>/ (requiere auth)
+       → Cambia estado: servido → cerrado
+
+  5. POST /api/pagos/ (requiere auth)
+       Body: { pedido_id, monto, metodo, vuelto }
+       → Crea Pago
+       → Crea Ticket
+       → Crea MovimientoCaja (tipo='ingreso') en caja activa
+       → Pedido.estado → "pagado"
+
+8.2 AUTO-DESACTIVACIÓN DE STOCK
+
+  Disparadores:
+    - PATCH /api/productos/<id>/ (si se modifica stock manualmente)
+    - POST /api/pedidos/<id>/confirmar/ (consume stock)
+    - POST /api/ordenar/ (endpoint público, consume stock directo)
+
+  Efecto en cascada:
+    1. Producto.stock se modifica
+    2. Si stock <= 0 → producto.activo = False
+    3. Se ejecuta desactivar_platos_por_producto(producto)
+    4. Busca todos los platos cuya receta incluya ese producto
+    5. plato.activo = False
+    6. Si después se intenta reactivar el plato:
+       Valida que todos los productos de su receta estén activos
+       Si hay inactivos → error 400
+
+8.3 CAJA REGISTRADORA
+
+  Apertura:
+    POST /api/cajas/
+      Body: { empleado_apertura_id, monto_inicial }
+      → Si hay otra caja activa, la cierra automáticamente
+      → Crea nueva caja con activa=True
+
+  Movimientos:
+    - Ingresos: se generan automáticamente al registrar un pago
+    - Egresos: POST /api/movimientos-caja/ manuales
+    - GET /api/movimientos-caja/?caja_id= para listar
+
+  Cierre:
+    PATCH /api/cajas/<id>/
+      Body: { cerrar: true, empleado_cierre_id, monto_final }
+      → activa = False
+      → fecha_cierre = ahora
+      → Guarda monto_final
+
+
+========================================================
+9. SEGURIDAD — SITUACIÓN ACTUAL
+========================================================
+
+  Aspecto                    | Estado
+  ---------------------------|----------------------------------------
+  Auth en pedidos/caja/res.  | ✅ @token_required
+  Auth en productos/platos.. | ❌ Sin protección
+  CSRF                       | ❌ @csrf_exempt en todas
+  Token storage              | localStorage (vulnerable a XSS)
+  CORS                       | CORS_ALLOW_ALL_ORIGINS = True
+  DEBUG                      | True
+  SECRET_KEY                 | Hardcodeada en settings.py
+  ALLOWED_HOSTS              | [] (vacío)
+  Contraseñas                | ✅ Hasheadas con PBKDF2
+  Rate limiting              | ❌ No implementado
+  HTTPS                      | ❌ No configurado
+  Expiración de tokens       | ❌ Tokens indefinidos
+  Credenciales en git        | ❌ .env con credenciales Gmail commiteadas
+
+  Resumen: el backend está abierto. Cualquiera con acceso a la red
+  puede crear/modificar/eliminar productos, platos, empleados, roles,
+  mesas, etc. Solo pedidos, pagos, caja, reservas requieren token.
+
+
+========================================================
+10. ESTADO DEL PROYECTO
+========================================================
+
+  ✅ Completo y funcional:
+    - CRUD empleados, productos, platos, mesas, turnos
+    - Recetas de platos y productos compuestos
+    - Producción (elaboración)
+    - Pedidos con ciclo de vida completo
+    - Caja con apertura/cierre/movimientos
+    - Reservas
+    - Login/register/logout
+    - Subida de imágenes
+    - Menú público conectado a API
+
+  🔄 Pendiente o incompleto:
+    - Dashboard (AdminHome) con datos mockeados
+    - Roles sin permisos asignados
+    - Seguridad en endpoints abiertos
+    - Tests automatizados
+    - Deploy a producción
+    - Expiración de tokens
+    - Rate limiting
+
+
+========================================================
+11. PREGUNTAS Y RESPUESTAS PARA ENTREVISTA
+========================================================
+
+P: ¿Por qué no usaste Django REST Framework?
+R: Lo consideré, pero para este proyecto preferí mantenerlo simple.
+   Las vistas son function-based con JsonResponse y funciones to_dict()
+   manuales. DRF agrega serializers, viewsets, routers — mucha abstracción
+   que para un proyecto de este tamaño no justificaba. Si escala, migrar
+   a DRF sería lo primero.
+
+P: ¿Por qué token auth y no JWT o sesiones?
+R: Las sesiones de Django no funcionan bien con SPA porque usan cookies y
+   requieren CSRF. JWT es excelente pero requiere refresh tokens, expiración,
+   y más librerías. Nuestro token es simple: se crea en login, se envía como
+   Authorization: Token <key>, se borra en logout. Para un sistema interno
+   de restaurante es suficiente.
+
+P: ¿Cómo manejás la autenticación en el frontend?
+R: Con un AuthContext que envuelve la app. Tiene login() que guarda token
+   en localStorage, logout() que lo elimina, y al cargar verifica el token
+   con /api/auth/me/. Las rutas admin están protegidas con AdminRoute.
+
+P: ¿Cómo evitás CORS en desarrollo?
+R: Con un proxy en package.json: "proxy": "http://127.0.0.1:8000". El
+   navegador pide a localhost:3000 y React Dev Server reenvía a Django.
+
+P: ¿Por qué no usás axios?
+R: fetch() es nativo y suficiente para GET/POST/PATCH/DELETE con JSON.
+   Cada página define un helper api() que normaliza errores. Si necesito
+   interceptors o timeouts en el futuro, pasaría a axios.
+
+P: ¿Cómo funciona el sistema de roles?
+R: El modelo Rol está vinculado a Group de Django mediante OneToOneField.
+   Al guardar un Rol, se sincroniza automáticamente el Group. Pero no
+   usamos los permisos de Django. La autorización es inline con filtros
+   como rol__nombre='Mesero'. Tenemos pendiente migrar a permisos custom.
+
+P: ¿Cómo manejás el stock?
+R: Al confirmar un pedido, recorremos los DetallePedido, por cada plato
+   obtenemos su Receta (qué productos y cantidades necesita), y restamos
+   del stock. Si stock <= 0, se desactiva el producto y también los platos
+   que lo usan (en cascada).
+
+P: ¿Qué pasa si reactivás un plato con productos inactivos?
+R: El endpoint valida que todos los productos de la receta estén activos.
+   Si hay inactivos, responde con error 400.
+
+P: ¿Usás los permisos de Django?
+R: Todavía no. El modelo Rol tiene el OneToOne a Group, y los Groups se
+   sincronizan automáticamente, pero nunca asignamos permisos. La idea
+   es migrar a Django Model Permissions con permisos custom como
+   'ajustar_stock', 'cerrar_caja', etc.
+
+P: ¿Cuáles son los mayores problemas de seguridad del proyecto?
+R: 1) La mayoría de endpoints no requieren autenticación (productos,
+   platos, empleados, roles). 2) CORS abierto a todos los orígenes.
+   3) DEBUG=True en producción. 4) Secret Key hardcodeada. 5) Tokens
+   en localStorage sin expiración. 6) Credenciales de email commiteadas.
+
+P: ¿Cómo harías deploy?
+R: Frontend en Vercel, backend en Railway/Render. Configurar ALLOWED_HOSTS,
+   DEBUG=False, SECRET_KEY como variable de entorno, restringir CORS,
+   y migrar la base de datos MySQL a un servicio cloud.
+
+P: Si tuvieras que migrar a DRF, ¿por dónde empezarías?
+R: Por los serializers (reemplazar to_dict() con ModelSerializer), después
+   ViewSets con routers, después autenticación con DRF TokenAuthentication,
+   después documentación con drf-spectacular. Módulo por módulo.
+
+P: ¿Cómo modelaste la relación User-Empleado-Rol?
+R: User (Django auth) tiene OneToOne con Empleado, que agrega datos
+   laborales. Empleado tiene FK a Rol. Rol tiene OneToOne con Group.
+   Cada rol puede tener múltiples empleados, cada empleado tiene un rol.
+
+P: ¿Cómo implementaste el módulo de caja?
+R: Con el modelo Caja (fecha_apertura, fecha_cierre, monto_inicial,
+   monto_final, activa). Solo una caja activa a la vez. Pagos generan
+   MovimientoCaja automáticamente. Se puede cerrar manualmente.
+
+P: ¿Cómo funciona el módulo de producción?
+R: RecetaProducto define qué insumos necesita un producto compuesto y en
+   qué cantidades. Produccion registra un lote de elaboración: consume
+   los insumos (resta stock) y produce el producto final (suma stock).
+
+P: ¿Qué harías si mañana tenés que dar soporte a 50 restaurantes?
+R: Agregaría un modelo Restaurant con subdominio, pondría FK restaurant_id
+   en todos los modelos, y un middleware que filtre automáticamente por
+   subdominio. Es multi-tenant con DB compartida, no separada.
+
+
+--- Más preguntas de entrevista ---
+
+
+P: ¿Por qué usás MySQL y no PostgreSQL?
+R: El proyecto arrancó con MySQL porque era la base que ya tenía disponible
+   en el entorno. Para un restaurante, cualquiera de los dos funciona bien.
+   PostgreSQL tiene mejor soporte para operaciones concurrentes y tipos de
+   datos como JSONB, pero acá no los necesitamos. Si el proyecto escalara,
+   PostgreSQL sería mi elección.
+
+P: ¿Cómo manejás las migraciones cuando trabajan varios desarrolladores?
+R: Django gestiona las migraciones automáticamente con makemigrations y
+   migrate. Cada desarrollador ejecuta makemigrations cuando cambia modelos
+   y commitea el archivo generado. El resto del equipo aplica migrate al
+   bajar los cambios. Si hay conflictos, se resuelven como cualquier conflicto
+   de git. Nunca editamos migraciones existentes, siempre creamos nuevas.
+
+P: ¿Cómo optimizarías una consulta que trae todos los pedidos con sus detalles?
+R: Usaría select_related para las FK directas (mesa, empleado) y
+   prefetch_related para las relaciones inversas (detallepedido_set).
+   Algo como: Pedido.objects.select_related('mesa','empleado')
+   .prefetch_related(
+       Prefetch('detallepedido_set',
+           queryset=DetallePedido.objects.select_related('plato'))
+   ).all(). También agregaría índices compuestos en (estado, fecha_creacion)
+   para filtrar rápido.
+
+P: ¿Qué pasa si dos usuarios confirman un pedido al mismo tiempo?
+R: Es una race condition. Se soluciona con transaction.atomic() y
+   select_for_update() para bloquear las filas de stock mientras se
+   procesa la confirmación. Así, el segundo usuario espera a que el
+   primero termine y ve el stock actualizado. Hoy no lo tenemos
+   implementado y podría haber problemas de concurrencia.
+
+P: ¿Por qué algunas vistas devuelven safe=False en JsonResponse?
+R: safe=False permite devolver listas en vez de diccionarios.
+   JsonResponse por defecto solo acepta dicts. Cuando devolvemos
+   una lista de productos o platos, necesitamos safe=False.
+   Ejemplo: JsonResponse([producto_to_dict(p) for p in productos], safe=False).
+
+P: ¿Cómo validás los datos si no tenés serializers? ¿No es propenso a errores?
+R: Sí, es propenso a errores. Hoy validamos manualmente con if/else después
+   de json.loads(). Es frágil y repetitivo. Es uno de los motivos por los
+   que migrar a DRF estaría en el backlog — los serializers dan validación
+   automática, mensajes de error consistentes y menos código.
+
+P: ¿Cómo manejás los errores de base de datos?
+R: Con try/except básico. Por ejemplo, IntegrityError si se viola una
+   constraint unique, o DoesNotExist si no se encuentra un objeto.
+   Django ya protege contra SQL injection porque usa ORM con queries
+   parametrizadas. Para errores más graves, Django retorna 500 al cliente.
+
+P: ¿Por qué usás select_related en algunas consultas y no en otras?
+R: select_related hace JOIN en la misma consulta SQL. Lo uso cuando sé
+   que voy a acceder a la FK de cada objeto (ej: Producto.categoria).
+   Lo omito en consultas donde solo necesito los datos del modelo base
+   o donde ya hay prefetch_related para relaciones inversas.
+
+P: ¿Cuánto tardaría en responder /api/productos/ con 10.000 productos?
+R: Depende de cuántos JOIN haga y si hay índices. Con select_related a
+   categoria y 10.000 filas, estimo entre 200ms y 500ms en MySQL local.
+   El cuello de botella sería la serialización (recorrer 10.000 productos
+   llamando a producto_to_dict()). Para mejorar, agregaría paginación
+   server-side (limit/offset) y filtros por query params.
+
+P: ¿Por qué usás Create React App y no Vite?
+R: El proyecto arrancó hace meses y CRA era el estándar. Hoy Vite es
+   más rápido (HMR instantáneo, build más rápido) y sería mi elección
+   si empezara de nuevo. Migrar a Vite implica reconfigurar el proxy,
+   el testing y los builds, y no justifica el esfuerzo ahora.
+
+P: ¿Cómo manejarías el estado global si la app creciera?
+R: Hoy usamos Context solo para auth. Si creciera, evaluaría Zustand
+   (liviano, simple) o Redux Toolkit (más estructura, middlewares).
+   Context es suficiente para estado global chico, pero causa re-renders
+   innecesarios si se usa para muchos datos que cambian frecuentemente.
+
+P: ¿Por qué el Dashboard tiene datos mockeados y no llama a la API?
+R: Es una deuda técnica. Lo dejé mockeado para tener algo visual mientras
+   desarrollaba otras funcionalidades. Lo pendiente es crear endpoints
+   de estadísticas (ventas del día, platos más vendidos, ocupación, etc.)
+   y conectar el dashboard a esos datos reales.
+
+P: ¿Cómo evitarías que el sidebar del admin se recargue en cada navegación?
+R: Ya no debería recargarse. Al usar React Router con rutas anidadas
+   dentro de AdminLayout, el sidebar se monta una vez y solo cambia el
+   contenido del <Outlet/> al navegar. Si recargara, sería porque cada
+   página admin tiene su propia llamada a datos en useEffect, no porque
+   se remonte el layout.
+
+P: ¿Cómo implementarías los filtros del lado del servidor en vez del cliente?
+R: Agregaría query params en los endpoints: /api/productos/?categoria=X
+   &activo=true&search=algo. En la vista, filtraría el queryset con
+   filter() antes de serializar. El frontend enviaría los filtros como
+   parámetros en la URL. Esto es más eficiente para conjuntos grandes
+   porque la BD hace el trabajo pesado.
+
+P: ¿Por qué algunos componentes repiten el helper api() en vez de tener
+   uno compartido?
+R: Deuda técnica. Arrancamos copiando el patrón de un componente a otro
+   sin refactorizar. Lo ideal sería tener un archivo api.js con una
+   función genérica que todos importen. Es un refactor simple que planeamos
+   hacer.
+
+P: ¿Cómo manejás el loading state en las páginas?
+R: Con un estado local loading (useState que arranca en true y pasa a
+   false cuando llega la respuesta). Mientras carga, mostramos un mensaje
+   o spinner condicional. También manejamos error con otro estado. No
+   tenemos un sistema de loading global ni suspense.
+
+P: ¿Cómo modelaste el inventario? ¿Por qué no usás un histórico de
+   movimientos de stock?
+R: Hoy el stock es un campo que se actualiza directamente (suma/resta).
+   No hay un log de movimientos. Esto es una limitación: no podemos
+   auditar quién y cuándo modificó el stock. Una mejora sería crear un
+   modelo MovimientoStock con tipo (ingreso/egreso), cantidad, referencia
+   (pedido/producción/ajuste), usuario y timestamp. Y el stock se
+   calcularía como suma de movimientos o se mantendría como campo
+   denormalizado para performance.
+
+P: ¿Qué índice le pondrías a la tabla Pedido para filtrar por fecha y estado?
+R: Un índice compuesto: (estado, fecha_creacion). Así las consultas
+   del tipo "pedidos activos de hoy" usan el índice completo. También
+   uno simple en (mesa_id) para buscar pedidos de una mesa.
+
+P: ¿Por qué Receta tiene unique_together?
+R: Para evitar que un mismo producto se agregue dos veces a la receta
+   del mismo plato. No tiene sentido que un plato requiera "harina" dos
+   veces con cantidades separadas. Si necesita más cantidad, se actualiza
+   la existente.
+
+P: Si un cliente pide 5 platos, ¿cuántas tablas se actualizan?
+R: 1 Pedido, 5 DetallePedido, N productos (según recetas), y si algún
+   producto llega a stock 0, se actualiza producto.activo y plato.activo.
+   Además, si se paga: 1 Pago, 1 Ticket, 1 MovimientoCaja. En total
+   entre 8 y 15 tablas afectadas.
+
+P: ¿Cuánto tiempo te tomó desarrollar esto? ¿Qué fue lo más complejo?
+R: Varios meses de desarrollo intermitente. Lo más complejo fue el
+   módulo de pedidos con confirmación y consumo de stock, porque
+   involucra varias tablas, cambios de estado, y la cascada de
+   desactivación. También la caja, porque integró pagos con movimientos
+   automáticos. Lo más tedioso fue el frontend admin por la cantidad de
+   CRUDs repetitivos.
+
+P: Si pudieras reescribir algo desde cero, ¿qué cambiarías?
+R: Usaría DRF desde el principio para tener serializers, validación y
+   documentación automática. En el frontend, crearía un apiService
+   compartido en vez de repetir helpers. Y pondría autenticación en
+   todos los endpoints desde el día 1, no después.
+
+P: ¿Cómo harías para que el menú público funcione sin JavaScript?
+R: Necesitaría Server-Side Rendering (SSR). React con CRA no lo soporta.
+   Migraría a Next.js, que renderiza en el servidor y envía HTML al
+   cliente. El menú público cargaría los datos en el servidor y el SEO
+   mejoraría. Alternativa más simple: hacer el menú como template de
+   Django (server-side rendering con Django templates).
+
+P: ¿Cómo integrarías un sistema de delivery tipo Rappi con esta API?
+R: Crearía un endpoint público /api/delivery/pedido/ que acepte los
+   datos del delivery (nombre, dirección, teléfono, platos). El delivery
+   enviaría un webhook cuando el pedido esté en camino. Del lado del
+   restaurante, los pedidos delivery aparecerían en AdminPedidos con
+   un tipo "delivery". La diferencia principal es que no hay mesa
+   asignada y el pago lo gestiona la plataforma externa.
+
+P: ¿Qué endpoints creés que son los más lentos y cómo los mejorarías?
+R: /api/productos/<id>/usos/ porque busca todas las recetas que incluyen
+   ese producto, y las recetas no tienen índice inverso por producto.
+   Lo mejoraría agregando un índice en Receta.producto_id y usando
+   select_related('plato') en la consulta. Otro candidato es /api/pedidos/
+   cuando hay muchos, por eso ya tiene filtros por estado y mesa.
+
+P: ¿Probaste la API? ¿Cómo?
+R: Manualmente desde el frontend y con el navegador. No tengo tests
+   automatizados. Para producción, agregaría tests con pytest y usaría
+   curl o Thunder Client para pruebas manuales. También painel admin
+   de Django para verificar datos.
+
+P: ¿Usaste git flow? ¿Cómo organizaste los commits?
+R: Git flow simple: rama main con los commits directos. Los mensajes
+   son descriptivos del cambio. No usé ramas de feature porque trabajé
+   solo. Si trabajara en equipo, usaría feature branches + pull requests.
+
+P: ¿Trabajaste solo o en equipo?
+R: Solo. Todo el backend y frontend lo desarrollé yo. Esto implicó
+   tomar todas las decisiones técnicas y cubrir ambas partes del stack.
+
+P: ¿Dejaste documentación de la API?
+R: No formal. El README.md tiene instrucciones de setup. La documentación
+   de la API está implícita en los nombres de los endpoints y el código.
+   Planeaba usar drf-spectacular si migraba a DRF, o al menos escribir
+   un documento con los endpoints y ejemplos de request/response.
+
+P: "Veo que hay contraseñas de Gmail en el repo, ¿eso es seguro?"
+R: No, es inseguro. El .env se commiteó antes de agregarlo al .gitignore.
+   Las credenciales ya están expuestas en el historial de git. La solución
+   es revocar esa contraseña de Gmail, generar una nueva, rotar la clave,
+   y eliminar el archivo del historial con git filter-branch o BFG Repo-Cleaner.
+
+P: "Varios endpoints no requieren autenticación, ¿por qué?"
+R: Fue una decisión de desarrollo temprano que no se corrigió. Los
+   endpoints públicos (productos, platos, menú) los dejé abiertos porque
+   el menú público los necesita. Pero los CRUD de empleados, roles,
+   categorías y mesas deberían estar protegidos. Es el gap de seguridad
+   más urgente de resolver.
+
+P: "¿Por qué el frontend usa fetch directo a /api/ sin incluir la URL
+     del servidor?"
+R: Por el proxy declarado en package.json. En desarrollo, el dev server
+   de React reenvía cualquier ruta /api/ a Django en localhost:8000.
+   En producción, cambiaría la URL base según la variable de entorno
+   REACT_APP_API_URL, apuntando al dominio del backend.
+
+--- Experiencia general y rol ---
+
+P: ¿Cuál fue tu rol exacto en este proyecto?
+R: Fui desarrollador full-stack. Hice el backend completo (modelos,
+   endpoints, lógica de negocio) y el frontend completo (componentes,
+   estado, routing, conexión con API). También diseñé la base de datos
+   y tomé decisiones de arquitectura.
+
+P: ¿Qué harías diferente si empezaras de nuevo?
+R: 1) Usaría DRF desde el principio. 2) Pondría autenticación en todos
+   los endpoints antes de escribir cualquier otra funcionalidad. 3) Usaría
+   Vite en vez de CRA. 4) Escribiría tests desde el día 1. 5) Crearía
+   un apiService compartido en el frontend. 6) Movería SECRET_KEY y
+   credenciales a variables de entorno desde el inicio.
+
+P: ¿Qué fue lo más difícil de implementar?
+R: El módulo de pedidos con confirmación y consumo de stock. Implica
+   coordinar varias tablas (Pedido, DetallePedido, Receta, Producto),
+   manejar la desactivación en cascada (producto → platos que lo usan),
+   y pensar en concurrencia. También fue tricky la caja con la lógica
+   de "una activa a la vez" y los movimientos automáticos al pagar.
+
+P: ¿Qué feature agregarías si tuvieras más tiempo?
+R: 1) Reportes y dashboard con datos reales (ventas por día, platos
+   más vendidos, empleado del mes). 2) Histórico de movimientos de stock.
+   3) Notificaciones en tiempo real con WebSockets (nuevo pedido en cocina).
+   4) Módulo de proveedores. 5) App móvil para meseros (tomar pedidos
+   desde la mesa). 6) Integración con Mercado Pago para pagos digitales.
+
+--- Performance ---
+
+P: ¿Cómo medís la performance de la API?
+R: Hoy no la mido. En producción agregaría herramientas como Django
+   Debug Toolbar (dev), logging de queries lentas, y monitoreo con
+   herramientas como New Relic o Sentry. También perfilaría los
+   endpoints más usados con cProfile o silk.
+
+P: ¿Qué harías si /api/productos/ tarda 3 segundos?
+R: Primero identificaría el cuello de botella. Probablemente sea la
+   serialización o la falta de índices. Soluciones: 1) Paginación
+   server-side (limit/offset). 2) select_related para evitar N+1.
+   3) Índices en campos de filtro (categoria_id, activo). 4) Cachear
+   la respuesta con Redis o cache de Django si los datos no cambian
+   frecuentemente. 5) Devolver solo los campos necesarios.
+
+P: ¿Cuándo usarías cache en este proyecto?
+R: En el menú público (los platos activos no cambian cada minuto, se
+   puede cachear por varios minutos). En las listas de productos y
+   categorías. En el dashboard de estadísticas (cachear por horas).
+   Usaría Redis como backend de cache y django.core.cache con timeout
+   configurable. Invalidaría la cache cuando se modifiquen los datos.
+
+--- Testing ---
+
+P: ¿Cómo probás que el consumo de stock funciona correctamente?
+R: No tengo tests automatizados, pero la forma correcta sería:
+   1. Test unitario del modelo: crear un producto con stock 10, crear
+      una receta que consuma 3, confirmar pedido, verificar stock en 7.
+   2. Test de integración: POST a /api/pedidos/<id>/confirmar/ y
+      verificar que stock se actualizó y que si llega a 0 se desactivó.
+   3. Test de concurrencia: dos confirmaciones simultáneas con
+      transaction.atomic + select_for_update y verificar consistencia.
+
+P: ¿Qué herramientas usarías para testing?
+R: Para backend: pytest + pytest-django. Para frontend: React Testing
+   Library + Vitest. También haría tests de API con pytest y el client
+   de Django (rf.get(), rf.post()). Para coverage: pytest-cov.
+
+P: ¿Qué debería tener un test del endpoint POST /api/productos/?
+R: 1) Test de creación exitosa (201). 2) Test con datos inválidos (400).
+   3) Test sin autenticación (debería fallar con 401 cuando agreguemos
+      @token_required). 4) Test de categoría inexistente (400 o 404).
+   5) Test con JSON mal formado (400).
+
+--- Manejo de errores ---
+
+P: ¿Cómo manejás los errores en el backend?
+R: Con try/except alrededor de json.loads() y las operaciones de BD.
+   Cada vista devuelve JsonResponse con el error y un status code
+   apropiado (400, 401, 404, 500). No hay un middleware global de
+   manejo de excepciones. Mejoraría creando un decorador o middleware
+   que capture excepciones no manejadas y devuelva un JSON consistente.
+
+P: ¿Qué pasa si el servidor de MySQL se cae?
+R: Django lanza una excepción OperationalError que se propaga como
+   error 500. No hay manejo especial. En producción agregaría: 1) Retry
+   con backoff para reconexión. 2) Timeout configurable en la BD.
+   3) Health check endpoint que verifique BD. 4) Logging de errores
+   con alerta.
+
+--- Despliegue y DevOps ---
+
+P: ¿Cómo harías el deploy a producción exactamente?
+R: Backend en Railway o Render: 1) Conectar repo de GitHub. 2) Configurar
+   variables de entorno (SECRET_KEY, DB_URL, EMAIL). 3) Usar MySQL cloud
+   (Railway lo ofrece o usar Aiven). 4) Build command: pip install. 5) Start
+   command: gunicorn pilate.wsgi. Frontend en Vercel: 1) Importar projecto.
+   2) Framework: Create React App. 3) Build command: npm run build. 4) Output:
+   build/. 5) Variables: REACT_APP_API_URL apuntando al backend. 6) Vercel
+   maneja SSL y CDN automáticamente.
+
+P: ¿Cómo manejás los secretos en producción?
+R: Nunca hardcodeados. Variables de entorno en Railway/Render. SECRET_KEY,
+   DB_PASSWORD, EMAIL_PASSWORD, etc. No se commitean, no están en el repo.
+   Solución para el error actual: rotar la contraseña de Gmail, eliminar
+   .env del historial de git, y desde ahora usar variables de entorno.
+
+P: ¿Cómo harías rollback si un deploy falla?
+R: Railway/Render permiten hacer deploy de un commit anterior con un
+   clic. También se puede hacer git revert del commit problemático y
+   redeployar. Siempre tener la DB migrada con migrate reversibles
+   (migration hacia atrás) o backup de la DB antes del deploy.
+
+P: ¿Qué monitorearías en producción?
+R: 1) Logs de errores (Sentry). 2) Tiempo de respuesta de endpoints
+   (New Relic / DataDog). 3) Uso de CPU/memoria (Railway/Render lo dan).
+   4) Consultas lentas (django-debug-toolbar en staging, logs en prod).
+   5) Errores 4xx y 5xx con alertas. 6) Disponibilidad (uptime monitor).
+
+--- Seguridad avanzada ---
+
+P: ¿Cómo prevenirías SQL injection?
+R: Django ORM ya lo hace automáticamente usando queries parametrizadas.
+   Mientras no uses raw() o extra() con strings concatenados, estás
+   protegido. En este proyecto no usamos raw queries, así que no hay
+   riesgo de SQL injection.
+
+P: ¿Cómo prevenirías XSS en el frontend?
+R: React escapa variables por defecto en JSX. Si hago {data.nombre},
+   React lo convierte a string seguro. El riesgo estaría en usar
+   dangerouslySetInnerHTML o en no sanitizar URLs de imágenes. Hoy
+   no usamos dangerouslySetInnerHTML. La URL de imagen subida se
+   almacena como campo y se usa en <img src={...} />, que React maneja
+   seguro.
+
+P: ¿Cómo manejarías la expiración de tokens?
+R: Agregaría un campo expires_at al modelo AuthToken. En el decorador
+   @token_required, verificaría si el token expiró y devolvería 401
+   con mensaje "Token expirado". En el frontend, si recibe 401, redirigiría
+   al login. También podría implementar refresh tokens con un endpoint
+   /api/auth/refresh/.
+
+P: ¿Qué es CORS y por qué lo necesitás?
+R: Cross-Origin Resource Sharing. Es un mecanismo del navegador que
+   bloquea requests de un origen a otro distinto. Lo necesito porque
+   en producción el frontend (Vercel) y el backend (Railway) están en
+   dominios diferentes. Sin CORS, el navegador rechazaría los requests.
+   En desarrollo lo evitamos con el proxy.
+
+--- Preguntas trampa/conceptuales ---
+
+P: ¿Cuál es la diferencia entre autenticación y autorización?
+R: Autenticación es verificar quién sos (login, token). Autorización es
+   verificar qué podés hacer (permisos, roles). @token_required autentica,
+   pero no autoriza. Los permisos de Django autorizan. En nuestro proyecto
+   tenemos autenticación parcial y casi nada de autorización.
+
+P: ¿Qué es N+1 y cómo lo evitás?
+R: Es hacer N queries adicionales después de una query principal. Ej:
+   traer 100 pedidos y por cada uno hacer una query para obtener el
+   mesero. Solución: select_related para FK (hace JOIN) y prefetch_related
+   para relaciones inversas (hace 2 queries total). En mis vistas uso
+   select_related en algunos endpoints pero no en todos.
+
+P: ¿Cómo harías para que el menú público cargue más rápido?
+R: 1) Cache con Redis (TTL de 5 minutos). 2) Paginación. 3) Devolver
+   solo los campos necesarios para el menú (nombre, precio, categoria,
+   imagen), no todo el objeto plato. 4) Imágenes optimizadas (WebP,
+   lazy loading). 5) Si es crítico, SSR con Next.js.
+
+P: ¿Por qué Django no tiene un endpoint /api/status/ o health check?
+R: No lo implementé. En producción es esencial para que el load balancer
+   verifique que el servidor está vivo. Lo agregaría como un endpoint
+   simple que devuelva {"status": "ok"} y opcionalmente verifique la
+   conexión a BD y el storage.
+
+P: ¿Cómo harías para que dos cocineros no vean el mismo pedido como
+   "pendiente" al mismo tiempo?
+R: Con select_for_update() dentro de una transacción atómica. Cuando
+   un cocinero toma un pedido, la fila se bloquea hasta que termine la
+   transacción. También se podría agregar un campo "asignado_a" en
+   Pedido para marcar quién lo está procesando.
+
+P: ¿Cómo integrarías WebSockets para notificar nuevos pedidos en cocina?
+R: Usaría Django Channels. Cuando se confirma un pedido, el backend
+   envía un mensaje por WebSocket al grupo "cocina". El frontend en la
+   página de pedidos se suscribe al grupo y muestra una notificación o
+   actualiza la lista sin recargar. Alternativa más simple: polling cada
+   5 segundos con setInterval.
+
+--- React específicas ---
+
+P: ¿Por qué usás className y no class en React?
+R: class es palabra reservada en JavaScript. React usa JSX, que es
+   JavaScript, así que usa className en vez de class para evitar
+   conflictos. Al final del día, className se traduce a class en el
+   DOM real.
+
+P: ¿Qué es el Virtual DOM y por qué React lo usa?
+R: Es una representación en memoria del DOM real. Cuando cambia el
+   estado, React calcula la diferencia (diff) entre el Virtual DOM
+   actual y el nuevo, y aplica solo los cambios necesarios al DOM real.
+   Esto es más eficiente que manipular el DOM directamente.
+
+P: ¿Qué es un hook? ¿Cuáles usaste?
+R: Un hook es una función que permite usar estado y ciclos de vida en
+   componentes funcionales. Usé useState (estado local), useEffect
+   (efectos secundarios como llamadas API), useContext (AuthContext),
+   y useNavigate (redirección programática).
+
+P: ¿Qué es el Context API y por qué lo usaste para auth?
+R: Context permite compartir datos entre componentes sin pasarlos por
+   props manualmente (prop drilling). Lo usé para auth porque casi todos
+   los componentes necesitan saber si el usuario está logueado y sus
+   datos. AuthProvider envuelve toda la app y expone user, empleado,
+   token, login y logout.
+
+P: ¿Por qué no usaste Redux?
+R: Para el tamaño del proyecto, Context + useState es suficiente. Redux
+   agrega mucha ceremonia (actions, reducers, store) que no justificaba.
+   Si la app creciera con más estados globales (carrito de compras,
+   notificaciones, configuraciones), evaluaría Zustand o Redux Toolkit.
+
+P: ¿Cómo manejás las rutas protegidas en React?
+R: Con un componente AdminRoute que envuelve las rutas de /admin/*.
+   Lee token y auth_data de localStorage. Si no hay token, redirige a
+   /login con <Navigate>. Si hay token pero no es admin, redirige a /.
+   No es 100% seguro porque depende de localStorage, que se puede
+   manipular. La seguridad real está en el backend.
+
+--- Arquitectura ---
+
+P: ¿Por qué pusiste todo en un solo archivo views.py?
+R: Empezó chico y creció. No lo refactorice a tiempo. Lo correcto sería
+   separar en módulos: views/auth.py, views/productos.py, views/pedidos.py,
+   etc. Es deuda técnica que habría que pagar antes de que el archivo
+   siga creciendo.
+
+P: ¿Cuál es la diferencia entre FK y OneToOne?
+R: FK permite muchos registros apuntando al mismo registro (ej: muchos
+   empleados pueden tener el mismo Rol). OneToOne es una FK con unique,
+   permite solo un registro del otro lado (ej: un User tiene un solo
+   Empleado y viceversa).
+
+P: ¿Cuándo usarías GenericForeignKey en lugar de FK?
+R: Cuando una FK puede apuntar a diferentes modelos. Por ejemplo, si
+   tuviera un modelo Movimiento que puede referenciar un Pedido o una
+   Produccion. En este proyecto no lo necesito porque cada relación está
+   bien definida.
+
+P: ¿Por qué no usaste signals de Django?
+R: No hubo necesidad. La lógica de negocio está en las vistas. Signals
+   son útiles para efectos secundarios que deben ocurrir siempre que se
+   guarda un modelo (ej: enviar email al crear empleado). Hoy el email
+   se envía desde la vista, no con un signal. No está mal, pero signals
+   asegurarían que siempre se ejecute incluso si se crea un empleado
+   desde el admin de Django.
+
+--- Preguntas de diseño ---
+
+P: Si un cliente quiere saber cuántos platos se vendieron ayer, ¿cómo
+   lo implementarías?
+R: Crearía un endpoint GET /api/reportes/ventas-diarias/?fecha=YYYY-MM-DD.
+   La vista haría una consulta agregada:
+   DetallePedido.objects.filter(
+       pedido__fecha_creacion__date=fecha,
+       pedido__estado='pagado'
+   ).values('plato__nombre').annotate(total=Sum('cantidad'))
+   Devolvería [{plato: "Milanesa", total: 15}, ...].
+
+P: Cómo modelarías descuentos o promociones?
+R: Crearía modelo Promocion con tipo (porcentaje/monto_fijo), valor,
+   fecha_inicio, fecha_fin, activo. Y una FK opcional a Plato o
+   CategoriaPlato (si la promoción aplica a un plato específico o a
+   toda una categoría). Al calcular el total del pedido, verificaría
+   si hay promociones activas que apliquen.
+
+P: Cómo manejarías el caso de "plato del día" que cambia cada día?
+R: Dos opciones: 1) Modelo PlatoDelDia con FK a Plato y fecha (unique
+   por fecha). El menú público filtraría platos del día por fecha actual.
+   2) Un campo booleano es_del_dia en Plato que se activa/desactiva
+   manualmente cada día. La opción 1 es mejor porque guarda histórico.
+
+--- Preguntas de troubleshooting ---
+
+P: Llegás al trabajo y la API devuelve 500 en todos los endpoints,
+   ¿qué hacés?
+R: 1) Revisar logs del servidor (heroku logs, journalctl, etc.). 2) Verificar
+   que la BD esté corriendo. 3) Revisar si hay errores de sintaxis en el
+   último deploy. 4) Verificar variables de entorno. 5) Si nada funciona,
+   hacer rollback al último commit estable.
+
+P: Un usuario reporta que puede ver datos de otro restaurante (cuando
+   implementen multi-tenant), ¿qué revisás primero?
+R: 1) Revisar el middleware de subdominio. 2) Verificar que todos los
+   querys filtren por restaurant_id. 3) Buscar querys que no tengan el
+   filtro. 4) Revisar que las FK tengan el restaurant_id correctamente.
+   La causa más común es olvidar el filter() en alguna vista.
+
+P: El menú público carga bien pero el admin anda lento, ¿por dónde
+   empezás a debuggear?
+R: 1) Verificar cuántos requests hace el admin al cargar (Network tab).
+   2) Las páginas admin hacen muchas llamadas API (empleados + roles +
+   turnos, etc.). 3) Ver si hay N+1 en las consultas. 4) Ver si el
+   frontend está renderizando muchos componentes sin key o con estados
+   que causan re-renders. 5) Perfilar con React Dev Tools.
+
+========================================================
+FIN DEL DOCUMENTO
+========================================================

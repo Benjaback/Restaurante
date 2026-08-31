@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+env/
+venv/
+*.egg-info/
+
+# Secretos
+.env
+.env.local
+
+# Dependencias
+node_modules/
+
+# Build
+build/
+dist/
+frontend/build/
+
+# Django media local (descomentar si no querés subir imágenes subidas por el sistema)
+# media/platos/
+
+# Misc
+.DS_Store

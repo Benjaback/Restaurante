@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiBookOpen, FiLogOut, FiLogIn, FiUserPlus, FiShield, FiMenu, FiX } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
-import './navbar.css';
 
 const scrollToSection = (index) => {
   const sections = document.querySelectorAll('.page-section');
@@ -13,7 +13,14 @@ const scrollToSection = (index) => {
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
-  const { user } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
+  const { user, empleado, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   useEffect(() => {
     const sections = document.querySelectorAll('.page-section');
@@ -33,74 +40,98 @@ export default function Navbar() {
     return () => sections.forEach((section) => observer.unobserve(section));
   }, []);
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const navItems = ['Inicio', 'Menu', 'Sobre mí'];
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar ${scrolled ? 'navbar--solid' : 'navbar--top'}`}>
       <div className="navbar-container">
-        {/* LOGO */}
-        <button
-          className="navbar-logo"
-          onClick={() => scrollToSection(0)}
-        >
-          <div className="logo-circle">🍴</div>
-          <span>La Mesa Grande</span>
+        <button className="navbar-logo" onClick={() => scrollToSection(0)}>
+          <div className="navbar-logo-icon">
+            <FiBookOpen size={20} />
+          </div>
+          <span className="navbar-logo-text">La Casa Grande</span>
         </button>
 
-        {/* MENU TOGGLE (Móvil) */}
         <button
-          className={`menu-toggle ${menuOpen ? 'open' : ''}`}
+          className={`navbar-toggle ${menuOpen ? 'navbar-toggle--open' : ''}`}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Menú"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          {menuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
         </button>
 
-        {/* MENU */}
-        <ul className={`nav-menu ${menuOpen ? 'active' : ''}`}>
+        <div className={`navbar-overlay ${menuOpen ? 'navbar-overlay--visible' : ''}`} onClick={() => setMenuOpen(false)} />
+
+        <ul className={`navbar-menu ${menuOpen ? 'navbar-menu--open' : ''}`}>
           {navItems.map((item, index) => (
-            <li className="nav-item" key={index}>
+            <li className="navbar-item" key={index}>
               <button
-                className={`nav-link ${activeSection === index ? 'active' : ''}`}
+                className={`navbar-link ${activeSection === index ? 'navbar-link--active' : ''}`}
                 onClick={() => {
                   scrollToSection(index);
                   setMenuOpen(false);
                 }}
               >
                 {item}
+                <span className="navbar-link-bar"></span>
               </button>
             </li>
           ))}
+          <li className="navbar-item navbar-divider" role="separator"></li>
           {user ? (
-            <li className="nav-item">
-              <Link
-                to="/admin"
-                className="nav-link nav-admin"
-                onClick={() => setMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            </li>
+            <>
+              {(user.is_staff || user.is_superuser || empleado) && (
+                <li className="navbar-item">
+                  <Link
+                    to="/admin"
+                    className="navbar-link navbar-link--admin"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <FiShield size={16} />
+                    Admin
+                    <span className="navbar-link-bar"></span>
+                  </Link>
+                </li>
+              )}
+              <li className="navbar-item">
+                <button
+                  className="navbar-link navbar-link--logout"
+                  onClick={() => { handleLogout(); setMenuOpen(false); }}
+                >
+                  <FiLogOut size={16} />
+                  Cerrar sesión
+                  <span className="navbar-link-bar"></span>
+                </button>
+              </li>
+            </>
           ) : (
             <>
-              <li className="nav-item">
+              <li className="navbar-item">
                 <Link
                   to="/login"
-                  className="nav-link nav-admin"
+                  className="navbar-link"
                   onClick={() => setMenuOpen(false)}
                 >
+                  <FiLogIn size={16} />
                   Iniciar sesión
+                  <span className="navbar-link-bar"></span>
                 </Link>
               </li>
-              <li className="nav-item">
+              <li className="navbar-item">
                 <Link
                   to="/register"
-                  className="nav-link nav-admin"
+                  className="navbar-link"
                   onClick={() => setMenuOpen(false)}
                 >
+                  <FiUserPlus size={16} />
                   Registrarse
+                  <span className="navbar-link-bar"></span>
                 </Link>
               </li>
             </>

@@ -1,0 +1,7 @@
+.cm-msg {
+  padding: 16px 20px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--tittle-color, #3B2008);
+  line-height: 1.6;
+}
