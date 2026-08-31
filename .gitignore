@@ -10,6 +10,9 @@ venv/
 .env
 .env.local
 
+# Documentación personal (no se comparte en el repo)
+documentacion-tecnica.md
+
 # Dependencias
 node_modules/
 
