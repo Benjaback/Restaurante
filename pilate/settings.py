@@ -24,7 +24,7 @@ load_dotenv(BASE_DIR / '.env')
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-only-change-me')
+SECRET_KEY = 'django-insecure-vl@mg!k+(s0+u=gxepriqa5s2+$3txw$!)3z4=1#oqtikz9x=@'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -82,11 +82,11 @@ WSGI_APPLICATION = 'pilate.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'restaurante'),
-        'USER': os.environ.get('DB_USER', 'root'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
+        'NAME': 'restaurante',
+        'USER': 'benja',
+        'PASSWORD': 'admin123',
+        'HOST': 'localhost',
+        'PORT': '3306',
     }
 }
 
