@@ -292,7 +292,7 @@ def home_api(request):
 
 @csrf_exempt
 @token_required
-@rol_required(['Dueño', 'Admin'])
+@rol_required(['Gerente'])
 def roles_list(request):
     if request.method == 'GET':
         roles = Rol.objects.filter(activo=True)
@@ -317,7 +317,7 @@ def roles_list(request):
 
 @csrf_exempt
 @token_required
-@rol_required(['Dueño', 'Admin'])
+@rol_required(['Gerente'])
 def rol_detail(request, rol_id):
     try:
         rol = Rol.objects.get(id=rol_id)
@@ -359,7 +359,7 @@ def turno_to_dict(t):
 
 @csrf_exempt
 @token_required
-@rol_required(['Dueño', 'Admin'])
+@rol_required(['Gerente'])
 def turnos_list(request):
     if request.method == 'GET':
         turnos = Turno.objects.all()
@@ -388,7 +388,7 @@ def turnos_list(request):
 
 @csrf_exempt
 @token_required
-@rol_required(['Dueño', 'Admin'])
+@rol_required(['Gerente'])
 def turno_detail(request, turno_id):
     try:
         turno = Turno.objects.get(id=turno_id)
@@ -939,7 +939,7 @@ def platos_list(request):
         if not token.user.is_active:
             return JsonResponse({'error': 'Usuario inactivo'}, status=401)
         user = token.user
-        if not user.is_superuser and (not hasattr(user, 'empleado') or user.empleado.rol.nombre not in ('Dueño', 'Admin', 'Cocinero')):
+        if not user.is_superuser and (not hasattr(user, 'empleado') or user.empleado.rol.nombre not in ('Gerente', 'Cocinero')):
             return JsonResponse({'error': 'No tienes permisos para crear platos'}, status=403)
         try:
             payload = json.loads(request.body.decode('utf-8'))
@@ -994,7 +994,7 @@ def plato_detail(request, plato_id):
         return JsonResponse({'error': 'Plato no encontrado'}, status=404)
 
     if request.method == 'PATCH':
-        if not request.user.is_superuser and (not hasattr(request.user, 'empleado') or request.user.empleado.rol.nombre not in ('Dueño', 'Admin')):
+        if not request.user.is_superuser and (not hasattr(request.user, 'empleado') or request.user.empleado.rol.nombre not in ('Gerente', 'Cocinero')):
             return JsonResponse({'error': 'No tienes permisos para editar platos'}, status=403)
         try:
             payload = json.loads(request.body.decode('utf-8'))
@@ -1048,7 +1048,7 @@ def plato_detail(request, plato_id):
         return JsonResponse(plato_to_dict(plato))
 
     if request.method == 'DELETE':
-        if not request.user.is_superuser and (not hasattr(request.user, 'empleado') or request.user.empleado.rol.nombre not in ('Dueño', 'Admin')):
+        if not request.user.is_superuser and (not hasattr(request.user, 'empleado') or request.user.empleado.rol.nombre not in ('Gerente', 'Cocinero')):
             return JsonResponse({'error': 'No tienes permisos para eliminar platos'}, status=403)
         plato.delete()
         return JsonResponse({'deleted': True})
@@ -1674,6 +1674,28 @@ def confirmar_pedido_view(request, pedido_id):
 @csrf_exempt
 @token_required
 def pagos_list(request):
+    if request.method == 'GET':
+        caja_id = request.GET.get('caja_id')
+        qs = Pago.objects.select_related('pedido').all()
+        if caja_id:
+            try:
+                caja = Caja.objects.get(id=caja_id)
+            except Caja.DoesNotExist:
+                return JsonResponse({'error': 'Caja no encontrada'}, status=404)
+            from django.utils import timezone
+            desde = caja.fecha_apertura
+            hasta = caja.fecha_cierre or timezone.now()
+            qs = qs.filter(fecha__gte=desde, fecha__lte=hasta)
+        data = [{
+            'id': p.id,
+            'pedido_id': p.pedido_id,
+            'monto': float(p.monto),
+            'metodo': p.metodo,
+            'vuelto': float(p.vuelto),
+            'fecha': p.fecha.isoformat(),
+        } for p in qs]
+        return JsonResponse(data, safe=False)
+
     if request.method == 'POST':
         try:
             payload = json.loads(request.body.decode('utf-8'))
@@ -1701,6 +1723,10 @@ def pagos_list(request):
         if hasattr(pedido, 'pago'):
             return JsonResponse({'error': 'El pedido ya tiene un pago registrado'}, status=400)
 
+        caja_activa = Caja.objects.filter(activa=True).first()
+        if not caja_activa:
+            return JsonResponse({'error': 'No hay una caja abierta. Abrí la caja para cobrar.'}, status=400)
+
         pago = Pago.objects.create(
             pedido=pedido,
             monto=monto,
@@ -1716,14 +1742,12 @@ def pagos_list(request):
         Ticket.objects.create(pedido=pedido, total=pedido.total)
 
         # Registrar en caja activa
-        caja_activa = Caja.objects.filter(activa=True).first()
-        if caja_activa:
-            MovimientoCaja.objects.create(
-                caja=caja_activa,
-                tipo='ingreso',
-                monto=monto,
-                referencia=f'Pedido #{pedido.id}',
-                descripcion=f'Pago con {dict(Pago.METODOS).get(metodo, metodo)}',
+        MovimientoCaja.objects.create(
+            caja=caja_activa,
+            tipo='ingreso',
+            monto=monto,
+            referencia=f'Pedido #{pedido.id}',
+            descripcion=f'Pago con {dict(Pago.METODOS).get(metodo, metodo)}',
             )
 
         return JsonResponse({
@@ -1736,7 +1760,7 @@ def pagos_list(request):
             'ticket_id': pedido.ticket.id,
         }, status=201)
 
-    return HttpResponseNotAllowed(['POST'])
+    return HttpResponseNotAllowed(['GET', 'POST'])
 
 
 # ─── TICKETS ───────────────────────────────────────────────────────────────────
@@ -1766,11 +1790,39 @@ def tickets_list(request):
 
 # ─── CAJA ──────────────────────────────────────────────────────────────────────
 
+def _puede_operar_caja(user):
+    if user.is_superuser:
+        return True
+    if not hasattr(user, 'empleado'):
+        return False
+    return user.empleado.rol.nombre in ('Gerente', 'Cajero')
+
+
+def _empleado_caja_fallback():
+    return Empleado.objects.filter(activo=True, rol__nombre__in=('Gerente', 'Cajero')).order_by('id').first()
+
+
 @csrf_exempt
 @token_required
 def cajas_list(request):
     if request.method == 'GET':
         qs = Caja.objects.select_related('empleado_apertura', 'empleado_cierre').all()
+
+        desde = request.GET.get('desde')
+        hasta = request.GET.get('hasta')
+        estado = request.GET.get('estado')
+
+        if desde:
+            qs = qs.filter(fecha_apertura__date__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha_apertura__date__lte=hasta)
+        if estado == 'abierta':
+            qs = qs.filter(activa=True)
+        elif estado == 'cerrada':
+            qs = qs.filter(activa=False)
+
+        qs = qs.order_by('-fecha_apertura')
+
         data = []
         for c in qs:
             ingresos = sum(float(m.monto) for m in c.movimientos.filter(tipo='ingreso'))
@@ -1795,18 +1847,25 @@ def cajas_list(request):
         except json.JSONDecodeError:
             return HttpResponseBadRequest('JSON inválido')
 
+        if not _puede_operar_caja(request.user):
+            return JsonResponse({'error': 'No tenés permisos para operar caja'}, status=403)
+
         empleado_id = payload.get('empleado_id')
         monto_inicial = payload.get('monto_inicial', 0)
-        if not empleado_id:
+        if empleado_id:
+            try:
+                empleado = Empleado.objects.get(id=empleado_id, activo=True)
+            except Empleado.DoesNotExist:
+                return JsonResponse({'error': 'Empleado no encontrado'}, status=400)
+        elif request.user.is_superuser:
+            empleado = _empleado_caja_fallback()
+            if not empleado:
+                return JsonResponse({'error': 'No hay empleados disponibles para operar la caja'}, status=400)
+        else:
             return JsonResponse({'error': 'empleado_id es requerido'}, status=400)
 
         # Cerrar cajas activas anteriores
         Caja.objects.filter(activa=True).update(activa=False)
-
-        try:
-            empleado = Empleado.objects.get(id=empleado_id, activo=True)
-        except Empleado.DoesNotExist:
-            return JsonResponse({'error': 'Empleado no encontrado'}, status=400)
 
         caja = Caja.objects.create(
             empleado_apertura=empleado,
@@ -1836,22 +1895,44 @@ def caja_detail(request, caja_id):
         except json.JSONDecodeError:
             return HttpResponseBadRequest('JSON inválido')
 
-        if 'cerrar' in payload and payload['cerrar']:
-            empleado_id = payload.get('empleado_cierre_id')
-            if not empleado_id:
-                return JsonResponse({'error': 'empleado_cierre_id es requerido'}, status=400)
-            try:
-                empleado = Empleado.objects.get(id=empleado_id, activo=True)
-            except Empleado.DoesNotExist:
-                return JsonResponse({'error': 'Empleado no encontrado'}, status=400)
+        if 'cerrar' in payload:
+            if payload.get('cerrar') is True:
+                if not _puede_operar_caja(request.user):
+                    return JsonResponse({'error': 'No tenés permisos para operar caja'}, status=403)
 
-            from django.utils import timezone
-            caja.empleado_cierre = empleado
-            caja.fecha_cierre = timezone.now()
-            caja.monto_final = payload.get('monto_final', 0)
-            caja.activa = False
-            caja.save()
-            return JsonResponse({'mensaje': 'Caja cerrada correctamente'})
+                empleado_id = payload.get('empleado_cierre_id')
+                if empleado_id:
+                    try:
+                        empleado = Empleado.objects.get(id=empleado_id, activo=True)
+                    except Empleado.DoesNotExist:
+                        return JsonResponse({'error': 'Empleado no encontrado'}, status=400)
+                elif request.user.is_superuser:
+                    empleado = _empleado_caja_fallback()
+                    if not empleado:
+                        return JsonResponse({'error': 'No hay empleados disponibles para operar la caja'}, status=400)
+                else:
+                    return JsonResponse({'error': 'empleado_cierre_id es requerido'}, status=400)
+
+                from django.utils import timezone
+                caja.empleado_cierre = empleado
+                caja.fecha_cierre = timezone.now()
+                caja.monto_final = payload.get('monto_final', 0)
+                caja.activa = False
+                caja.save()
+                return JsonResponse({'mensaje': 'Caja cerrada correctamente'})
+            elif payload.get('cerrar') is False:
+                if not _puede_operar_caja(request.user):
+                    return JsonResponse({'error': 'No tenés permisos para operar caja'}, status=403)
+
+                # Cerrar cualquier otra caja activa
+                Caja.objects.filter(activa=True).exclude(id=caja.id).update(activa=False)
+
+                caja.empleado_cierre = None
+                caja.fecha_cierre = None
+                caja.monto_final = None
+                caja.activa = True
+                caja.save()
+                return JsonResponse({'mensaje': 'Caja reabierta correctamente'})
 
         if 'monto_inicial' in payload:
             caja.monto_inicial = payload['monto_inicial']
@@ -1924,6 +2005,51 @@ def movimientos_caja_list(request):
         }, status=201)
 
     return HttpResponseNotAllowed(['GET', 'POST'])
+
+
+@csrf_exempt
+@token_required
+def movimiento_caja_detail(request, movimiento_id):
+    try:
+        m = MovimientoCaja.objects.select_related('caja').get(id=movimiento_id)
+    except MovimientoCaja.DoesNotExist:
+        return JsonResponse({'error': 'Movimiento no encontrado'}, status=404)
+
+    if request.method == 'PATCH':
+        if not _puede_operar_caja(request.user):
+            return JsonResponse({'error': 'No tenés permisos para operar caja'}, status=403)
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest('JSON inválido')
+
+        if 'monto' in payload:
+            monto = payload['monto']
+            if monto is None:
+                return JsonResponse({'error': 'monto inválido'}, status=400)
+            m.monto = monto
+        if 'referencia' in payload:
+            m.referencia = payload['referencia']
+        if 'descripcion' in payload:
+            m.descripcion = payload['descripcion']
+        m.save()
+        return JsonResponse({
+            'id': m.id,
+            'caja_id': m.caja_id,
+            'tipo': m.tipo,
+            'monto': float(m.monto),
+            'referencia': m.referencia,
+            'descripcion': m.descripcion,
+            'fecha': m.fecha.isoformat(),
+        })
+
+    if request.method == 'DELETE':
+        if not _puede_operar_caja(request.user):
+            return JsonResponse({'error': 'No tenés permisos para operar caja'}, status=403)
+        m.delete()
+        return JsonResponse({'deleted': True})
+
+    return HttpResponseNotAllowed(['PATCH', 'DELETE'])
 
 
 # ─── RESERVAS ──────────────────────────────────────────────────────────────────

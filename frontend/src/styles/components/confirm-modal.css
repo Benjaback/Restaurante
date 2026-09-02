@@ -1,3 +1,4 @@
+/* ── CONFIRM MODAL ──────────────────── */
 .cm-msg {
   padding: 16px 20px;
   margin: 0;
@@ -5,3 +6,4 @@
   color: var(--tittle-color, #3B2008);
   line-height: 1.6;
 }
+

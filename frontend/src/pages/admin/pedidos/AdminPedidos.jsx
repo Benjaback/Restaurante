@@ -273,12 +273,13 @@ export default function AdminPedidos() {
                             </button>
                           )}
                           {p.estado === 'cerrado' && (
-                            <button className="ap-btn ap-btn--success ap-btn--sm" onClick={() => {
-                              setPagoModal(p);
-                              setPagoMonto(p.total.toString());
-                              setPagoMetodo('efectivo');
-                              setPagoVuelto('');
-                            }}>
+                            <button className="ap-btn ap-btn--success ap-btn--sm" disabled={cajaAbierta === false}
+                              onClick={() => {
+                                setPagoModal(p);
+                                setPagoMonto(p.total.toString());
+                                setPagoMetodo('efectivo');
+                                setPagoVuelto('');
+                              }}>
                               Cobrar
                             </button>
                           )}

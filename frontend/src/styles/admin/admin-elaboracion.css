@@ -1,0 +1,26 @@
+/* ===============================
+   ADMIN ELABORACION
+   =============================== */
+.ael-receta-section { padding: 16px 20px; }
+.ael-receta-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.ael-receta-header strong { font-size: 14px; font-weight: 700; color: var(--tittle-color, #3B2008); }
+.ael-receta-empty { font-size: 13px; color: #9b9589; text-align: center; padding: 20px 0; margin: 0; }
+.ael-receta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.ael-receta-row select { flex: 1; min-width: 0; }
+.ael-receta-row input { width: 100px; flex-shrink: 0; }
+.ael-receta-row button { flex-shrink: 0; }
+.ael-nuevo-producto { padding: 16px 20px; border-bottom: 1px solid #ece3d1; }
+.ael-nuevo-producto label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--tittle-color, #3B2008); }
+.ael-elaborar-body { padding: 20px; }
+.ael-elaborar-desc { color: #eae6e2; font-size: 14px; margin: 0 0 16px; }
+.ael-elaborar-lista { font-size: 13px; color: #e9e4e1; line-height: 1.8; padding-left: 20px; margin: 0 0 20px; }
+.ael-stock-badge { margin-left: 8px; color: #f1ede9; }
+.ael-stock-badge--empty { color: #c0392b; }
+.ael-empty-state { padding: 40px; text-align: center; }
+.ael-ingredientes-cell { font-size: 13px; color: #7A4012; }
+.ael-actions { gap: 6px; }
+.ael-input-full { width: 100%; }
+.ael-cantidad-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: #e2dbd5; }
+.ael-cantidad-input { max-width: 120px; }
+.ael-unidad-label { font-size: 12px; font-weight: 600; color: #7A4012; white-space: nowrap; min-width: 28px; }
+
