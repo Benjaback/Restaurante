@@ -1493,11 +1493,14 @@ def pedidos_list(request):
     if request.method == 'GET':
         estado = request.GET.get('estado')
         mesa_id = request.GET.get('mesa_id')
+        pendientes = request.GET.get('pendientes')
         qs = Pedido.objects.select_related('mesa', 'empleado').prefetch_related('detalles__plato').all()
         if estado:
             qs = qs.filter(estado=estado)
         if mesa_id:
             qs = qs.filter(mesa_id=mesa_id)
+        if pendientes:
+            qs = qs.filter(estado__in=['cerrado', 'servido']).filter(pago__isnull=True)
         data = []
         for p in qs:
             d = pedido_to_dict(p)

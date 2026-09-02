@@ -17,6 +17,7 @@ export default function AdminCaja() {
 
   const [cerrarModal, setCerrarModal] = useState(false);
   const [montoFinal, setMontoFinal] = useState('');
+  const [pendientes, setPendientes] = useState([]);
 
   const [historialOpen, setHistorialOpen] = useState(false);
   const [historialCajas, setHistorialCajas] = useState([]);
@@ -318,8 +319,13 @@ export default function AdminCaja() {
             </button>
           )}
           {cajaActiva ? (
-            <button className="ap-btn ap-btn--warning" onClick={() => {
+            <button className="ap-btn ap-btn--warning" onClick={async () => {
               setMontoFinal(saldoEsperado.toFixed(2));
+              setPendientes([]);
+              try {
+                const pd = await api('/api/pedidos/?pendientes=1');
+                setPendientes(pd);
+              } catch (e) { /* el aviso es informativo */ }
               setCerrarModal(true);
             }}>
               Cerrar caja
@@ -550,6 +556,39 @@ export default function AdminCaja() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {pendientes.length > 0 && (
+                <div className="ap-warning-box">
+                  <strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
+                    ⚠️ Hay {pendientes.length} pedido(s) cobrables sin pagar
+                  </strong>
+                  <div className="ap-table-wrap">
+                    <table className="ap-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Mesa</th>
+                          <th>Total</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendientes.map(p => (
+                          <tr key={p.id}>
+                            <td>Pedido #{p.id}</td>
+                            <td>Mesa {p.mesa_numero}</td>
+                            <td>${Number(p.total).toFixed(2)}</td>
+                            <td>{p.estado === 'cerrado' ? 'Cerrado' : 'Servido'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="ap-text--muted" style={{ fontSize: 12, marginTop: 8 }}>
+                    Si cerrás la caja, estos cobros quedarán bloqueados hasta reabrirla.
+                  </p>
                 </div>
               )}
 

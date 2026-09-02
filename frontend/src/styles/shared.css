@@ -190,6 +190,14 @@
 }
 .ap-modal-close:hover { background: var(--gris-2); color: var(--text); }
 .ap-form { display: flex; flex-direction: column; gap: 16px; }
+.ap-warning-box {
+  background: rgba(255, 140, 0, 0.08);
+  border: 1px solid rgba(255, 140, 0, 0.4);
+  border-left: 4px solid var(--dorado-2, #FF8C00);
+  border-radius: var(--radius, 12px);
+  padding: 16px;
+  margin-bottom: 16px;
+}
 .ap-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .ap-field { display: flex; flex-direction: column; gap: 6px; }
 .ap-field--checkbox { grid-column: span 2; }
