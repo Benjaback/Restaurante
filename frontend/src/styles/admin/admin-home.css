@@ -1,0 +1,137 @@
+/* ===============================
+   ADMIN HOMEPAGE (DASHBOARD)
+   =============================== */
+.admin-home h1,
+.admin-home p {
+  margin: 0;
+}
+
+.dashboard-panel {
+  background: var(--surface);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  padding: 40px;
+  border: 1px solid var(--border);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 40px;
+}
+
+.dashboard-header h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  font-weight: 400;
+  color: var(--marron);
+  line-height: 1.1;
+  margin: 12px 0 12px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dorado);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  max-width: 620px;
+  line-height: 1.75;
+  margin: 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 22px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.primary-button {
+  background: var(--dorado);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255,140,0,0.25);
+}
+
+.primary-button:hover {
+  background: #e67e00;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.secondary-button {
+  background: var(--gris-2);
+  color: var(--dorado);
+}
+
+.secondary-button:hover {
+  background: var(--gris-3);
+  transform: translateY(-1px);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.dashboard-card {
+  background: var(--surface-2);
+  border-radius: var(--radius-xl);
+  padding: 28px 26px;
+  border: 1px solid var(--border-light);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.dashboard-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-card h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gris);
+  margin: 0 0 14px;
+}
+
+.card-value {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.5rem;
+  color: var(--marron);
+  font-weight: 400;
+  line-height: 1;
+  margin: 0 0 10px;
+}
+
+.dashboard-card span {
+  font-size: 13px;
+  color: var(--gris);
+}

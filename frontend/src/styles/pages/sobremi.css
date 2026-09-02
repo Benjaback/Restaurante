@@ -1,0 +1,168 @@
+/* ── SOBRE MI ───────────────────────── */
+.sobre-mi-section {
+  width: 100%;
+  padding: 80px 20px;
+  background: linear-gradient(180deg, #faf7f0 0%, #fffbf7 100%);
+  margin-top: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sobre-mi-section::before {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196,129,26,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.sobre-mi-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.sobre-mi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sobre-mi-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c4811a;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.sobre-mi-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: #2c1a0e;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.sobre-mi-title-em {
+  font-style: italic;
+  color: #c4811a;
+}
+
+.sobre-mi-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #6b3a1f;
+  margin: 0;
+}
+
+.sobre-mi-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sobre-mi-stat {
+  background: #fff;
+  padding: 20px 16px;
+  border-radius: 12px;
+  border: 1px solid #ece3d1;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sobre-mi-stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(59, 32, 8, 0.08);
+}
+
+.sobre-mi-stat-num {
+  font-size: 28px;
+  font-weight: 800;
+  color: #c4811a;
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.sobre-mi-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7a4012;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sobre-mi-visual {
+  position: relative;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sobre-mi-visual-bg {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(196,129,26,0.10), rgba(196,129,26,0.03));
+  border: 1px solid rgba(196,129,26,0.12);
+  animation: sobreMiPulse 4s ease-in-out infinite;
+}
+
+@keyframes sobreMiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.sobre-mi-visual-card {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.sobre-mi-visual-card--main {
+  width: 140px;
+  height: 140px;
+  background: linear-gradient(135deg, #c4811a, #e8a53a);
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(196, 129, 26, 0.30);
+  z-index: 2;
+}
+
+.sobre-mi-visual-card--main:hover {
+  transform: scale(1.08);
+  box-shadow: 0 16px 48px rgba(196, 129, 26, 0.40);
+}
+
+.sobre-mi-visual-card--small {
+  width: 60px;
+  height: 60px;
+  background: #fff;
+  color: #c4811a;
+  box-shadow: 0 4px 16px rgba(59, 32, 8, 0.10);
+  z-index: 1;
+}
+
+.sobre-mi-visual-card--small:hover {
+  transform: scale(1.12);
+}
+
+.sobre-mi-visual-card--tl { top: 30px; right: 40px; }
+.sobre-mi-visual-card--br { bottom: 40px; right: 30px; }
+.sobre-mi-visual-card--bl { bottom: 50px; left: 30px; }
+

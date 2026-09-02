@@ -13,16 +13,16 @@ import AdminCaja from '../pages/admin/caja/AdminCaja';
 import AdminReservas from '../pages/admin/reservas/AdminReservas';
 
 const ALL_SECTIONS = [
-  { path: '/admin/home',        label: 'Resumen',     roles: ['Dueño', 'Admin', 'Cajero', 'Mesero', 'Cocinero'] },
-  { path: '/admin/pedidos',     label: 'Pedidos',     roles: ['Dueño', 'Admin', 'Cajero', 'Mesero'] },
-  { path: '/admin/reservas',    label: 'Reservas',    roles: ['Dueño', 'Admin', 'Cajero'] },
-  { path: '/admin/caja',        label: 'Caja',        roles: ['Dueño', 'Admin', 'Cajero'] },
-  { path: '/admin/mesas',       label: 'Mesas',       roles: ['Dueño', 'Admin', 'Mesero'] },
-  { path: '/admin/platos',      label: 'Menú',        roles: ['Dueño', 'Admin', 'Cocinero'] },
-  { path: '/admin/productos',   label: 'Productos',   roles: ['Dueño', 'Admin'] },
-  { path: '/admin/empleados',   label: 'Empleados',   roles: ['Dueño', 'Admin'] },
-  { path: '/admin/elaboracion', label: 'Elaboración', roles: ['Dueño', 'Admin', 'Cocinero'] },
-  { path: '/admin/turnos',      label: 'Turnos',      roles: ['Dueño', 'Admin'] },
+  { path: '/admin/home',        label: 'Resumen',     roles: ['Gerente', 'Cajero', 'Mesero', 'Cocinero'] },
+  { path: '/admin/pedidos',     label: 'Pedidos',     roles: ['Gerente', 'Cajero', 'Mesero'] },
+  { path: '/admin/reservas',    label: 'Reservas',    roles: ['Gerente', 'Cajero'] },
+  { path: '/admin/caja',        label: 'Caja',        roles: ['Gerente', 'Cajero'] },
+  { path: '/admin/mesas',       label: 'Mesas',       roles: ['Gerente', 'Mesero'] },
+  { path: '/admin/platos',      label: 'Menú',        roles: ['Gerente', 'Cocinero'] },
+  { path: '/admin/productos',   label: 'Productos',   roles: ['Gerente'] },
+  { path: '/admin/empleados',   label: 'Empleados',   roles: ['Gerente'] },
+  { path: '/admin/elaboracion', label: 'Elaboración', roles: ['Gerente', 'Cocinero'] },
+  { path: '/admin/turnos',      label: 'Turnos',      roles: ['Gerente'] },
 ];
 
 const PAGES = {

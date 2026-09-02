@@ -49,6 +49,7 @@ urlpatterns = [
     path('cajas/', views.cajas_list, name='cajas_list'),
     path('cajas/<int:caja_id>/', views.caja_detail, name='caja_detail'),
     path('movimientos-caja/', views.movimientos_caja_list, name='movimientos_caja_list'),
+    path('movimientos-caja/<int:movimiento_id>/', views.movimiento_caja_detail, name='movimiento_caja_detail'),
     # Reservas
     path('reservas/', views.reservas_list, name='reservas_list'),
     path('reservas/<int:reserva_id>/', views.reserva_detail, name='reserva_detail'),
